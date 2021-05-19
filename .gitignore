@@ -1,5 +1,8 @@
 /data
 /intermediate
+.ipynb_checkpoints
+.idea
+__pycache__
 
 download_data.sh
 run_train_heart.sh
