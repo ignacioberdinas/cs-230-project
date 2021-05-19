@@ -1,0 +1,6 @@
+/data
+/intermediate
+
+download_data.sh
+run_train_heart.sh
+run_train_lungs.sh
