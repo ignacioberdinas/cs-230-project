@@ -15,6 +15,34 @@ def draw_bounding_box(tensor,bbox,nrow=8,padding=2,normalize=False,range=None,sc
     from numpy import array as to_numpy_array
     return torch.from_numpy(to_numpy_array(im))
 
+import numpy as np
+import cv2
+
+
+def decodeSeg(mask, segmentations):
+    """
+    Draw segmentation
+    """
+    pts = [
+        np
+            .array(anno)
+            .reshape(-1, 2)
+            .round()
+            .astype(int)
+        for anno in segmentations
+    ]
+    mask = cv2.fillPoly(mask, pts, 1)
+
+    return mask
+
+def annotation2binarymask(annotations,h,w):
+    mask = np.zeros((h, w), np.uint8)
+    for annotation in annotations:
+        segmentations = annotation['segmentation']
+        if isinstance(segmentations, list):
+            mask = decodeSeg(mask, segmentations)
+    return mask
+
 def jaccard_metric(inputs, target, eps=1e-7):
     intersection = (target * inputs).sum()
     union = (target.sum() + inputs.sum()) - intersection + eps

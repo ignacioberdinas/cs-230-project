@@ -5,8 +5,9 @@ from torch.utils.data import DataLoader
 import albumentations as A
 
 from datasets.lungdatasets import SchenzenMontgomeryLungSegmentationDataset
+from datasets.lungdatasets import CheXpertLungSegmentationDataset
 from models.unet import ResNetUNet
-from utils import bce_dice_loss, dice_metric
+from utils.utils import bce_dice_loss, dice_metric
 import numpy as np
 from tqdm import tqdm
 import glob
@@ -87,9 +88,22 @@ train_ds = SchenzenMontgomeryLungSegmentationDataset(df=train, data_dir=BASE_DAT
 val_ds = SchenzenMontgomeryLungSegmentationDataset(df=val, data_dir=BASE_DATA, aug_transform=get_transforms(IMAGE_SIZE))
 test_ds = SchenzenMontgomeryLungSegmentationDataset(df=test, data_dir=BASE_DATA, aug_transform=get_transforms(IMAGE_SIZE), test=True)
 
+ds_train_no_finding = CheXpertLungSegmentationDataset("./data/hand-label/cardiomegaly-certain.json", '../CheXpert-v1.0-small/train/', aug_transform=get_transforms(320))
+ds_train_cardiomegaly = CheXpertLungSegmentationDataset("./data/hand-label/nofinding.json", '../CheXpert-v1.0-small/train/', aug_transform=get_transforms(320))
+
+full_ds_chexpert = torch.utils.data.ConcatDataset([ds_train_no_finding, ds_train_cardiomegaly])
+
+
+train_ds_chexpert,val_ds_chexpert = torch.utils.data.random_split(full_ds_chexpert, [len(full_ds_chexpert) - 100, 100], generator=torch.Generator().manual_seed(42))
+
+print(len(train_ds_chexpert))
+print(len(val_ds_chexpert))
 train_dl = DataLoader(train_ds, batch_size=2, shuffle=True)
 val_dl = DataLoader(val_ds, batch_size=2, shuffle=True)
 test_dl = DataLoader(test_ds, batch_size=2, shuffle=False)
+
+train_dl_chex = DataLoader(train_ds_chexpert, batch_size=2, shuffle=True)
+val_dl_chex = DataLoader(val_ds_chexpert, batch_size=2, shuffle=True)
 
 model = ResNetUNet().cuda()
 
@@ -99,7 +113,6 @@ for param in model.parameters():
 params = [p for p in model.parameters() if p.requires_grad]
 
 optimizer = torch.optim.Adam(params, lr=0.00005)
-#TODO: Add LR Scheduling before h-param tuning
 
 loss_history = []
 train_dice_history = []
@@ -113,7 +126,7 @@ for epoch in range(5):
 
     print('Validation epoch ', str(epoch))
 
-    metrics_val = do_epoch(model, optimizer, val_dl, train=False)
+    metrics_val = do_epoch(model, optimizer, val_dl_chex, train=False)
 
     print('Valdation dice loss', str(np.array(metrics_val['acc']).mean()))
 
@@ -125,8 +138,33 @@ for epoch in range(5):
     # Save best model
     best_dice = max(val_dice_history)
     if val_dice_history[-1] >= best_dice:
-        torch.save({'state_dict': model.state_dict()}, os.path.join(BASE_WEIGHTS, f"{val_dice_history[-1]:0.6f}_.pth"))
+        torch.save({'state_dict': model.state_dict()}, os.path.join(BASE_WEIGHTS, f"pretraining{val_dice_history[-1]:0.6f}_.pth"))
 
+print('FINISH PRETRAINING')
+
+optimizer2 = torch.optim.Adam(params, lr=0.000005)
+
+for epoch in range(10):
+
+    print('Start epoch ', str(epoch))
+
+    metrics_train = do_epoch(model, optimizer2, train_dl_chex, train=True)
+
+    print('Validation epoch ', str(epoch))
+
+    metrics_val = do_epoch(model, optimizer2, val_dl_chex, train=False)
+
+    print('Valdation dice loss', str(np.array(metrics_val['acc']).mean()))
+
+    # train history
+    loss_history.append(np.array(metrics_train['losses']).mean())
+    train_dice_history.append(np.array(metrics_train['acc']).mean())
+    val_dice_history.append(np.array(metrics_val['acc']).mean())
+
+    # Save best model
+    best_dice = max(val_dice_history)
+    if val_dice_history[-1] >= best_dice:
+        torch.save({'state_dict': model.state_dict()}, os.path.join(BASE_WEIGHTS, f"nopretraining{val_dice_history[-1]:0.6f}_.pth"))
 
 best_weights = sorted(glob.glob(BASE_WEIGHTS + "/*"), key=lambda x: x[8:-5])[-1]
 print(best_weights)

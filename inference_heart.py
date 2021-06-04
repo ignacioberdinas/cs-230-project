@@ -30,23 +30,27 @@ model = get_model(num_classes)
 # move model to the right device
 model.to(device)
 
-model_params = torch.load('./intermediate/heart_weights/model3.pth')
-model.load_state_dict(model_params)
+model_names = [name.split('.')[0] for name in os.listdir('./intermediate/heart_weights/')]
 
-import os
-from tqdm import tqdm
-import pickle
+print(model_names)
+for name in ['modelPRETRAINING9']:
+    model_params = torch.load(f'./intermediate/heart_weights/{name}.pth')
+    model.load_state_dict(model_params)
 
-CHEXPERT_VALIDATION_BASE = './data/chexpert-cardio-nofinding'
+    import os
+    from tqdm import tqdm
+    import pickle
 
-paths = os.listdir(CHEXPERT_VALIDATION_BASE)
-predictions = []
-for p in tqdm(paths):
-    prediction = evaluate_image(model, CHEXPERT_VALIDATION_BASE+'/'+p,device)
-    predictions.append(prediction)
+    CHEXPERT_VALIDATION_BASE = './data/chexpert-cardio-nofinding'
 
-with open('./intermediate/out_paths.pickle', 'wb') as handle:
-    pickle.dump(paths, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    paths = os.listdir(CHEXPERT_VALIDATION_BASE)
+    predictions = []
+    for p in tqdm(paths):
+        prediction = evaluate_image(model, CHEXPERT_VALIDATION_BASE+'/'+p,device)
+        predictions.append(prediction)
 
-with open('./intermediate/out_heart.pickle', 'wb') as handle:
-    pickle.dump(predictions, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    with open(f'./intermediate/out_paths{name}.pickle', 'wb') as handle:
+        pickle.dump(paths, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+    with open(f'./intermediate/out_heart{name}.pickle', 'wb') as handle:
+        pickle.dump(predictions, handle, protocol=pickle.HIGHEST_PROTOCOL)

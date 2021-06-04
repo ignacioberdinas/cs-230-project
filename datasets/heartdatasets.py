@@ -41,14 +41,14 @@ class VinBigDataHeartDataset(Dataset):
         if self.transforms is not None:
             image = self.transforms(image)
 
-        return image, target, image_id
+        return image, target
 
     def __len__(self):
         return self.image_ids.shape[0]
 
 
 class CheXpertHeartDataset(Dataset):
-    def __init__(self, data_dir, image_dir, train, transforms=None):
+    def __init__(self, data_dir, image_dir, transforms=None, test=False):
         super().__init__()
 
         self.labels_paths = os.listdir(data_dir)
@@ -57,11 +57,12 @@ class CheXpertHeartDataset(Dataset):
         self.data_dir = data_dir
         self.image_dir = image_dir
         self.transforms = transforms
+        self.test = test
 
     def __getitem__(self, idx):
         image_path = self.paths[idx]
         label_path = self.labels_paths[idx]
-        print(f'{self.image_dir}/{image_path}')
+        #print(f'{self.image_dir}/{image_path}')
         image = cv2.imread(f'{self.image_dir}/{image_path}', 0)
         image = cv2.merge([image, image, image])
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB).astype(np.float32)
@@ -72,29 +73,38 @@ class CheXpertHeartDataset(Dataset):
         labels = labels[labels.clazz.eq(0)]
 
         height, width, _ = image.shape
-        x, y, w, h = labels[['x_min', 'y_min', 'x_max', 'y_max']].values[0]
 
-        boxes = torch.as_tensor(
-            np.array([[(x - (w / 2)) * width, (y - (h / 2)) * height, (x + (w / 2)) * width, (y + (h / 2)) * height]]),
-            dtype=torch.float32)
-        area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
-        area = torch.as_tensor(area, dtype=torch.float32)
-        labels = torch.squeeze(torch.as_tensor((labels.clazz.values,), dtype=torch.int64))
+        target = {}
+
+        if len(labels[['x_min', 'y_min', 'x_max', 'y_max']].values) > 0:
+            x, y, w, h = labels[['x_min', 'y_min', 'x_max', 'y_max']].values[0]
+
+            boxes = torch.as_tensor(
+                np.array([[(x - (w / 2)) * width, (y - (h / 2)) * height, (x + (w / 2)) * width, (y + (h / 2)) * height]]),
+                dtype=torch.float32)
+            area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
+            area = torch.as_tensor(area, dtype=torch.float32)
+            labels = torch.zeros((len(labels),), dtype=torch.int64) + 1
+        else:
+            print(image_path)
+            return self.__getitem__(idx+1)
 
         # suppose all instances are not crowd
         iscrowd = torch.zeros((1,), dtype=torch.int64)
-        target = {}
+        
         target['boxes'] = boxes
         target['labels'] = labels
         # target['masks'] = None
         target['image_id'] = torch.tensor([idx])
+        if self.test:
+            target['extra'] = image_path
         target['area'] = area
         target['iscrowd'] = iscrowd
 
         if self.transforms is not None:
-            image = self.transforms(image, target)
+            image = self.transforms(image)
 
-        return image, target, label_path
+        return image, target
 
     def __len__(self):
         return len(self.paths)
