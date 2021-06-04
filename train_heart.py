@@ -97,7 +97,6 @@ train_ds_chexpert,val_ds_chexpert = torch.utils.data.random_split(full_ds_chexpe
 data_loader_chex = DataLoader(train_ds_chexpert, batch_size=1, shuffle=True, collate_fn=lambda batch: tuple(zip(*batch)))
 data_loader_chex_test = DataLoader(val_ds_chexpert, batch_size=1, shuffle=False, collate_fn=lambda batch: tuple(zip(*batch)))
 
-#TODO: add this to train_lungs to automatically choose cuda instead of hardcode .cuda()
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
 #Two classes, background/heart
