@@ -12,8 +12,6 @@ import numpy as np
 from tqdm import tqdm
 import glob
 
-#TODO: replace this with argparse to run from .sh for hyperparam tunning and for AWS
-#TODO: replace all hardcoded h-params as argparse
 BASE_DATA = './data/lung-segmentation/'
 BASE_WEIGHTS = './intermediate/lung_mask_weights/'
 IMAGE_SIZE = 512
@@ -21,7 +19,7 @@ BATCH_SIZE = 2
 DEVICE = "cuda:0"
 
 def get_transforms(size, test = False):
-    #TODO: Do test-time augmentation?
+    #Do test-time augmentation?
     return A.Compose([
         A.Resize(height=size, width=size, p=1.0),
         A.HorizontalFlip(p=0.5),

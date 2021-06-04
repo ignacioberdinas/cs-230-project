@@ -8,13 +8,12 @@ import numpy as np
 from datasets.lungdatasets import MEAN,STD
 from models.unet import ResNetUNet
 
-#TODO: Make out dir configurable with argparse
 IMAGE_SIZE = 512
 
 LUNG_MODEL_WEIGHTS = './intermediate/lung_mask_weights'
 PATH = "./intermediate/out_lung_mask/"
 
-#TODO: Remove last absolute path
+#Remove absolut path
 base_path = 'C:/Users/ignacio/workspace/stanford/cs230/CheXpert-v1.0-small/train/'
 CHEXPERT_VALIDATION_BASE = './data/chexpert-cardio-nofinding'
 
